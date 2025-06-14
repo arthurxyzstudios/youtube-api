@@ -1,4 +1,4 @@
-const ytdl = require("ytdl-core");
+import ytdl from 'ytdl-core';
 
 export default async function handler(req, res) {
   const { url, type = "video", info } = req.query;
@@ -8,36 +8,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    const infoData = await ytdl.getInfo(url);
-    const { title, lengthSeconds, videoId, thumbnails, author } = infoData.videoDetails;
-    const safeTitle = title.replace(/[^\w\s]/gi, "_");
+    const videoInfo = await ytdl.getInfo(url);
+    const title = videoInfo.videoDetails.title.replace(/[^\w\s]/gi, "_");
 
     if (info === "true") {
       return res.status(200).json({
-        videoId,
-        title,
-        duration: `${Math.floor(lengthSeconds / 60)}:${String(lengthSeconds % 60).padStart(2, "0")}`,
-        author: author.name,
-        thumbnail: thumbnails.at(-1)?.url,
-        formats: ytdl.filterFormats(infoData.formats, type === "audio" ? "audioonly" : "videoandaudio"),
+        title: videoInfo.videoDetails.title,
+        thumbnail: videoInfo.videoDetails.thumbnails.at(-1)?.url,
+        author: videoInfo.videoDetails.author.name,
+        duration: `${Math.floor(videoInfo.videoDetails.lengthSeconds / 60)}:${videoInfo.videoDetails.lengthSeconds % 60}`,
+        formats: videoInfo.formats.map(f => ({
+          quality: f.qualityLabel,
+          mimeType: f.mimeType,
+          url: f.url
+        }))
       });
     }
 
     if (type === "audio") {
-      res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.mp3"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${title}.mp3"`);
       res.setHeader("Content-Type", "audio/mpeg");
       return ytdl(url, { filter: "audioonly", quality: "highestaudio" }).pipe(res);
     } else {
-      res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.mp4"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${title}.mp4"`);
       res.setHeader("Content-Type", "video/mp4");
       return ytdl(url, { filter: "audioandvideo", quality: "18" }).pipe(res);
     }
-  } catch (err) {
-  console.error("❌ Gagal proses:", err);
-  res.status(500).json({
-    error: "Gagal memproses video",
-    reason: err.message || "Unknown error"
-  });
-}
-           }
 
+  } catch (err) {
+    console.error("❌ Gagal proses video:", err.message);
+    res.status(500).json({ error: "Gagal memproses video", reason: err.message });
+  }
+}
