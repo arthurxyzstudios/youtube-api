@@ -33,8 +33,11 @@ export default async function handler(req, res) {
       return ytdl(url, { filter: "audioandvideo", quality: "18" }).pipe(res);
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Gagal memproses video" });
-  }
+  console.error("❌ Gagal proses:", err);
+  res.status(500).json({
+    error: "Gagal memproses video",
+    reason: err.message || "Unknown error"
+  });
+}
            }
 
